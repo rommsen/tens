@@ -3,12 +3,26 @@ module App
 open Elmish
 open Elmish.React
 open Feliz
+open Fable.Core
+
+
+[<Emit("setInterval($0, $1)")>]
+let setInterval (f: unit -> unit) (n: int) : int = jsNative
+
+[<Emit("clearInterval($0)")>]
+let clearInterval (n: int) : unit = jsNative
+
+let random = new System.Random()
+
+
+
 
 type Running =
   {
     Clicked : int list
     Numbers : int list
     Points : int
+    TickId : int
   }
 
 type State =
@@ -18,11 +32,29 @@ type State =
 
 type Msg =
     | Tick of int
+    | StartTicking of int
     | Started
     | Clicked of int 
 
+let startTicking = 
+  let start dispatch =
+    let number = random.Next(1,9)
+    let tickId = setInterval (fun () -> dispatch (Tick number)) 1000
+    dispatch (StartTicking tickId)
+
+  Cmd.ofSub start
+
+let stopTicking id = 
+  let stop _ =
+    clearInterval id
+    ()
+
+  Cmd.ofSub stop
+
+
+
 let init() =
-  Not_Started
+  Not_Started,Cmd.none
 
 let removeIndex index list =
   list 
@@ -30,8 +62,9 @@ let removeIndex index list =
   |> List.filter fst 
   |> List.map snd
 
-let update (msg: Msg) (state: State): State =
+let update (msg: Msg) (state: State) =
     match state,msg with
+
     | Running state, Clicked index ->
         state.Numbers
         |> List.tryItem index 
@@ -43,21 +76,34 @@ let update (msg: Msg) (state: State): State =
               }
 
             if newState.Clicked |> List.sum = 10 then 
-              Running { state with Clicked = [] ; Points = state.Points + 1 }
+              Running { state with Clicked = [] ; Points = state.Points + 1 },Cmd.none
             elif newState.Clicked |> List.length = 3 then 
-              Finished state.Points
+              Finished state.Points, stopTicking state.TickId
             else
-              Running state
+              Running state, Cmd.none
           )
-        |> Option.defaultValue (Running state)    
+        |> Option.defaultValue (Running state,Cmd.none)    
 
     | Running state, Tick number ->
         if state.Numbers |> List.length = 11 then 
-          Finished state.Points
+          Finished state.Points,stopTicking state.TickId
         else 
-          Running { state with Numbers = state.Numbers @ [number] }
+          Running { state with Numbers = state.Numbers @ [number] },Cmd.none
 
-    | _ -> state     
+
+    | Not_Started, Started ->
+        state, startTicking
+
+    | Not_Started, StartTicking tickId ->
+        ({
+          Clicked = []
+          Numbers = []
+          Points = 0
+          TickId = tickId
+        }
+        |> Running), Cmd.none              
+
+    | _ -> state,Cmd.none     
 
 
 let renderButton dispatch (number : int) index  =
@@ -72,8 +118,6 @@ let renderRunning state dispatch =
     |> List.mapi (renderButton dispatch)
 
   Html.div buttons
-
-
 
 let render (state: State) (dispatch: Msg -> unit) =
   match state with 
@@ -90,6 +134,6 @@ let render (state: State) (dispatch: Msg -> unit) =
       Html.span points    
   
 
-Program.mkSimple init update render
+Program.mkProgram init update render
 |> Program.withReactSynchronous "elmish-app"
 |> Program.run
