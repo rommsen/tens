@@ -38,8 +38,7 @@ type Msg =
 
 let startTicking = 
   let start dispatch =
-    let number = random.Next(1,9)
-    let tickId = setInterval (fun () -> dispatch (Tick number)) 1000
+    let tickId = setInterval (fun () -> dispatch (Tick (random.Next(1,9)))) 1000
     dispatch (StartTicking tickId)
 
   Cmd.ofSub start
@@ -75,12 +74,15 @@ let update (msg: Msg) (state: State) =
                   Numbers = state.Numbers |> removeIndex index
               }
 
+            printfn "index %i" index            
+            printfn "index %i" index            
+
             if newState.Clicked |> List.sum = 10 then 
-              Running { state with Clicked = [] ; Points = state.Points + 1 },Cmd.none
+              Running { newState with Clicked = [] ; Points = state.Points + 1 },Cmd.none
             elif newState.Clicked |> List.length = 3 then 
               Finished state.Points, stopTicking state.TickId
             else
-              Running state, Cmd.none
+              Running newState, Cmd.none
           )
         |> Option.defaultValue (Running state,Cmd.none)    
 
@@ -106,7 +108,7 @@ let update (msg: Msg) (state: State) =
     | _ -> state,Cmd.none     
 
 
-let renderButton dispatch (number : int) index  =
+let renderButton dispatch index (number : int)   =
   Html.button [
     prop.onClick (fun _ -> dispatch (Clicked index))
     prop.text number
