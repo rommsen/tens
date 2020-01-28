@@ -58,24 +58,37 @@ let update (msg: Msg) (state: State): State =
           Running { state with Numbers = state.Numbers @ [number] }
 
     | _ -> state     
-        
+
+
+let renderButton dispatch (number : int) index  =
+  Html.button [
+    prop.onClick (fun _ -> dispatch (Clicked index))
+    prop.text number
+  ]   
+
+let renderRunning state dispatch =
+  let buttons =
+    state.Numbers 
+    |> List.mapi (renderButton dispatch)
+
+  Html.div buttons
 
 
 
 let render (state: State) (dispatch: Msg -> unit) =
-  Html.div [
-    Html.button [
-      prop.onClick (fun _ -> dispatch Increment)
-      prop.text "Increment"
-    ]
+  match state with 
+  | Not_Started ->
+      Html.button [
+        prop.onClick (fun _ -> dispatch Started)
+        prop.text "Start"
+      ]
 
-    Html.button [
-      prop.onClick (fun _ -> dispatch Decrement)
-      prop.text "Decrement"
-    ]
+  | Running state ->
+      renderRunning state dispatch
 
-    Html.h1 state.Count
-  ]
+  | Finished points ->
+      Html.span points    
+  
 
 Program.mkSimple init update render
 |> Program.withReactSynchronous "elmish-app"
