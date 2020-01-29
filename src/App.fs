@@ -31,15 +31,16 @@ type State =
   | Finished of int
 
 type Msg =
-    | Tick of int
-    | StartTicking of int
-    | Started
-    | Clicked of int 
+  | Tick of int
+  | GameStarted of int
+  | Start
+  | Restart
+  | Clicked of int 
 
 let startTicking = 
   let start dispatch =
     let tickId = setInterval (fun () -> dispatch (Tick (random.Next(1,9)))) 1000
-    dispatch (StartTicking tickId)
+    dispatch (GameStarted tickId)
 
   Cmd.ofSub start
 
@@ -49,8 +50,6 @@ let stopTicking id =
     ()
 
   Cmd.ofSub stop
-
-
 
 let init() =
   Not_Started,Cmd.none
@@ -72,10 +71,7 @@ let update (msg: Msg) (state: State) =
               { state with 
                   Clicked = state.Clicked @ [number] 
                   Numbers = state.Numbers |> removeIndex index
-              }
-
-            printfn "index %i" index            
-            printfn "index %i" index            
+              }     
 
             if newState.Clicked |> List.sum = 10 then 
               Running { newState with Clicked = [] ; Points = state.Points + 1 },Cmd.none
@@ -93,10 +89,13 @@ let update (msg: Msg) (state: State) =
           Running { state with Numbers = state.Numbers @ [number] },Cmd.none
 
 
-    | Not_Started, Started ->
+    | Not_Started, Start ->
         state, startTicking
 
-    | Not_Started, StartTicking tickId ->
+    | Finished _, Restart ->
+        Not_Started, startTicking
+        
+    | Not_Started, GameStarted tickId ->
         ({
           Clicked = []
           Numbers = []
@@ -110,6 +109,7 @@ let update (msg: Msg) (state: State) =
 
 let renderButton dispatch index (number : int)   =
   Html.button [
+    prop.style [ style.padding 20 ; style.fontSize 20 ]
     prop.onClick (fun _ -> dispatch (Clicked index))
     prop.text number
   ]   
@@ -121,11 +121,28 @@ let renderRunning state dispatch =
 
   Html.div buttons
 
+let renderFinished points dispatch =
+  let score =
+    Html.div [
+      Html.h2 [
+        prop.text (sprintf "Final Score: %i" points)
+      ]
+    ]
+  Html.div [
+    score
+    Html.button [
+      prop.style [ style.padding 20 ; style.fontSize 20 ]
+      prop.onClick (fun _ -> dispatch Restart)
+      prop.text "Restart"
+    ]
+  ]
+
 let render (state: State) (dispatch: Msg -> unit) =
   match state with 
   | Not_Started ->
       Html.button [
-        prop.onClick (fun _ -> dispatch Started)
+        prop.style [ style.padding 20 ; style.fontSize 20 ]
+        prop.onClick (fun _ -> dispatch Start)
         prop.text "Start"
       ]
 
@@ -133,7 +150,7 @@ let render (state: State) (dispatch: Msg -> unit) =
       renderRunning state dispatch
 
   | Finished points ->
-      Html.span points    
+      renderFinished points dispatch
   
 
 Program.mkProgram init update render
