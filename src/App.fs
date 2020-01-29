@@ -14,9 +14,6 @@ let clearInterval (n: int) : unit = jsNative
 
 let random = new System.Random()
 
-
-
-
 type Running =
   {
     Clicked : int list
@@ -74,58 +71,75 @@ let (|MaxNumbersExceeded|WithinNumberLimit|) numbers =
   else
     WithinNumberLimit  
 
+let finished state =
+  Finished state.Points, stopTicking state.TickId  
+
+let withoutCommands state =
+  state, Cmd.none
+
+let handleClick state index number =
+  let newState =
+    { state with 
+        Clicked = state.Clicked @ [number] 
+        Numbers = state.Numbers |> removeIndex index
+    }  
+
+  match state.Clicked with 
+  | ReachedExactlyTen ->  
+      Running { newState with Clicked = [] ; Points = state.Points + 1 } 
+      |> withoutCommands
+
+  | NotTenAndClickNumberExceeded ->
+      state |> finished
+
+  | StillGood ->    
+      Running newState |> withoutCommands
+
+let withAppendedNumber number state =
+  Running { state with Numbers = state.Numbers @ [number] } 
+
+let initializedGame tickId =
+  {
+    Clicked = []
+    Numbers = []
+    Points = 0
+    TickId = tickId
+  } |> Running
+
+
+let withHandledClickOn index state =
+  state.Numbers
+  |> List.tryItem index 
+  |> Option.map (handleClick state index)
+  |> Option.defaultValue (Running state |> withoutCommands)    
 
 
 let update (msg: Msg) (state: State) =
-    match state,msg with
+  match state,msg with
+  | Running state, Clicked index ->
+      state
+      |> withHandledClickOn index       
 
-    | Running state, Clicked index ->
-        state.Numbers
-        |> List.tryItem index 
-        |> Option.map (fun number ->
-            let newState =
-              { state with 
-                  Clicked = state.Clicked @ [number] 
-                  Numbers = state.Numbers |> removeIndex index
-              }  
+  | Running state, Tick number ->
+      match state.Numbers with 
+      | MaxNumbersExceeded ->
+          state |> finished
 
-            match state.Clicked with 
-            | ReachedExactlyTen ->  
-                Running { newState with Clicked = [] ; Points = state.Points + 1 },Cmd.none
+      | WithinNumberLimit ->
+          state 
+          |> withAppendedNumber number
+          |> withoutCommands
 
-            | NotTenAndClickNumberExceeded ->
-                Finished state.Points, stopTicking state.TickId
+  | Not_Started, Start ->
+      state, startTicking
 
-            | StillGood ->    
-                Running newState, Cmd.none                       
-          )
-        |> Option.defaultValue (Running state,Cmd.none)    
+  | Finished _, Restart ->
+      Not_Started, startTicking
 
-    | Running state, Tick number ->
-        match state.Numbers with 
-        | MaxNumbersExceeded ->
-            Finished state.Points,stopTicking state.TickId
+  | Not_Started, GameStarted tickId ->
+      initializedGame tickId |> withoutCommands              
 
-        | WithinNumberLimit ->
-            Running { state with Numbers = state.Numbers @ [number] },Cmd.none
-
-
-    | Not_Started, Start ->
-        state, startTicking
-
-    | Finished _, Restart ->
-        Not_Started, startTicking
-
-    | Not_Started, GameStarted tickId ->
-        ({
-          Clicked = []
-          Numbers = []
-          Points = 0
-          TickId = tickId
-        }
-        |> Running), Cmd.none              
-
-    | _ -> state,Cmd.none     
+  | _ -> state |> withoutCommands     
 
 
 let renderButton dispatch index (number : int)   =
