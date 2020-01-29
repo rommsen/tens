@@ -60,6 +60,22 @@ let removeIndex index list =
   |> List.filter fst 
   |> List.map snd
 
+let (|ReachedExactlyTen|NotTenAndClickNumberExceeded|StillGood|) clicked =
+  if clicked |> List.sum = 10 then 
+    ReachedExactlyTen
+  elif clicked |> List.length = 3 then 
+    NotTenAndClickNumberExceeded
+  else 
+    StillGood
+
+let (|MaxNumbersExceeded|WithinNumberLimit|) numbers =
+  if numbers |> List.length = 11 then 
+    MaxNumbersExceeded
+  else
+    WithinNumberLimit  
+
+
+
 let update (msg: Msg) (state: State) =
     match state,msg with
 
@@ -71,22 +87,27 @@ let update (msg: Msg) (state: State) =
               { state with 
                   Clicked = state.Clicked @ [number] 
                   Numbers = state.Numbers |> removeIndex index
-              }     
+              }  
 
-            if newState.Clicked |> List.sum = 10 then 
-              Running { newState with Clicked = [] ; Points = state.Points + 1 },Cmd.none
-            elif newState.Clicked |> List.length = 3 then 
-              Finished state.Points, stopTicking state.TickId
-            else
-              Running newState, Cmd.none
+            match state.Clicked with 
+            | ReachedExactlyTen ->  
+                Running { newState with Clicked = [] ; Points = state.Points + 1 },Cmd.none
+
+            | NotTenAndClickNumberExceeded ->
+                Finished state.Points, stopTicking state.TickId
+
+            | StillGood ->    
+                Running newState, Cmd.none                       
           )
         |> Option.defaultValue (Running state,Cmd.none)    
 
     | Running state, Tick number ->
-        if state.Numbers |> List.length = 11 then 
-          Finished state.Points,stopTicking state.TickId
-        else 
-          Running { state with Numbers = state.Numbers @ [number] },Cmd.none
+        match state.Numbers with 
+        | MaxNumbersExceeded ->
+            Finished state.Points,stopTicking state.TickId
+
+        | WithinNumberLimit ->
+            Running { state with Numbers = state.Numbers @ [number] },Cmd.none
 
 
     | Not_Started, Start ->
@@ -94,7 +115,7 @@ let update (msg: Msg) (state: State) =
 
     | Finished _, Restart ->
         Not_Started, startTicking
-        
+
     | Not_Started, GameStarted tickId ->
         ({
           Clicked = []
