@@ -84,7 +84,7 @@ let handleClick state index number =
         Numbers = state.Numbers |> removeIndex index
     }  
 
-  match state.Clicked with 
+  match newState.Clicked with 
   | ReachedExactlyTen ->  
       Running { newState with Clicked = [] ; Points = state.Points + 1 } 
       |> withoutCommands
@@ -154,7 +154,10 @@ let renderRunning state dispatch =
     state.Numbers 
     |> List.mapi (renderButton dispatch)
 
-  Html.div buttons
+  Html.div [
+    yield! buttons
+    // yield Html.div (sprintf "%A" state)
+  ]
 
 let renderFinished points dispatch =
   let score =
