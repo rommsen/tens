@@ -192,5 +192,6 @@ let render (state: State) (dispatch: Msg -> unit) =
   
 
 Program.mkProgram init update render
+|> Program.withConsoleTrace
 |> Program.withReactSynchronous "elmish-app"
 |> Program.run
