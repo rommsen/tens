@@ -1,6 +1,8 @@
-# Elmish Getting Started
+# Tens in Elmish
+I  recorded 2 hours of me developing a simple game in Fable Elmish from start to finish. Here is the link to the video: https://youtu.be/jeYlmH2NlTw
 
-This is a simple Fable application including an [Elmish](https://elmish.github.io/) counter. The repository is made for learning purposes and the generated Javascript output is not optimized. That said, the template shows you how easy it is to get started with Fable and Elmish using minimal configuration.
+Motivation for this video came from this tweet by Ryan Florence: https://twitter.com/ryanflorence/status/1219351388775256064
+I wanted to try out how this could be build with the help of the Elm Architecture.
 
 ## Building and running the app
 
